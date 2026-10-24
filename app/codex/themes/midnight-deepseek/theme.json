@@ -1,0 +1,28 @@
+{
+  "id": "midnight-deepseek",
+  "name": "深夜大肥鱼 · 雨夜",
+  "version": "2.0.0",
+  "styleVersion": "deepseek-v7",
+  "description": "DeepSeek 娘雨夜卧室动态壁纸：视频背景 + 时钟/日期/氛围文案/实时天气，Codex 界面玻璃化",
+  "author": "Codex × 守岸人",
+  "background": {
+    "type": "video",
+    "source": "assets/bg-loop.mp4",
+    "poster": "assets/bg-poster.jpg",
+    "loop": true,
+    "muted": true,
+    "note": "原片 60-84s 段，首尾 0.6s 交叉淡化无缝循环；主题不发声，视频强制静音"
+  },
+  "weather": {
+    "latitude": 36.061,
+    "longitude": 103.834,
+    "city": "兰州",
+    "source": "https://api.open-meteo.com/v1/forecast?latitude=36.061&longitude=103.834&current=temperature_2m,weather_code&timezone=Asia%2FShanghai",
+    "cacheMinutes": 30
+  },
+  "hud": {
+    "clockSize": 92,
+    "accent": "#9fe3ff",
+    "text": "#eef7ff"
+  }
+}

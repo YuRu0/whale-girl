@@ -1,0 +1,8 @@
+{
+  "name": "whale-girl-local",
+  "productName": "鲸鱼娘",
+  "version": "1.3.3",
+  "description": "鲸鱼娘桌宠与 Codex 界面主题（守岸人 · 夜海 / 深夜大肥鱼 · 雨夜）与可更换启动动画",
+  "main": "main.cjs",
+  "license": "MIT"
+}

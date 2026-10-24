@@ -1,0 +1,98 @@
+/* 深夜大肥鱼主题样式 */
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+/* 视频背景 */
+#theme-bg-video {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  object-fit: cover;
+}
+
+/* 时钟容器 */
+#theme-clock {
+  position: fixed;
+  font-size: 96px;
+  font-weight: 300;
+  letter-spacing: -2px;
+  color: var(--theme-text-color, #e8f4ff);
+  text-shadow: var(--theme-text-shadow, 0 0 12px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6));
+  font-variant-numeric: tabular-nums;
+}
+
+/* 大阪风格数字（竖版冒号） */
+#theme-clock.osaka-style {
+  font-feature-settings: "tnum" 1;
+}
+
+#theme-clock .colon {
+  display: inline-block;
+  width: 0.3em;
+  text-align: center;
+}
+
+/* 日期显示 */
+#theme-date {
+  position: fixed;
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--theme-text-color, #e8f4ff);
+  text-shadow: var(--theme-text-shadow, 0 0 12px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6));
+}
+
+/* 天气显示 */
+#theme-weather {
+  position: fixed;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--theme-text-color, #e8f4ff);
+  text-shadow: var(--theme-text-shadow, 0 0 12px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#theme-weather .icon {
+  font-size: 32px;
+}
+
+/* 底部状态文字 */
+#theme-status {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--theme-text-color, #e8f4ff);
+  text-shadow: var(--theme-text-shadow, 0 0 12px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6));
+  opacity: 0.9;
+}
+
+/* 淡入动画 */
+@keyframes theme-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.theme-fade-in {
+  animation: theme-fade-in 0.8s ease-out;
+}

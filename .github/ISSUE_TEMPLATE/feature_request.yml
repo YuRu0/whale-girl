@@ -1,0 +1,58 @@
+name: ✨ 功能建议
+description: 提出新功能或改进想法
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎提想法。说得越具体，越可能被实现。
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: 相关模块
+      options:
+        - 桌面宠物
+        - Codex 界面主题
+        - 启动动画
+        - 用量面板 / 播报
+        - 安装 / 卸载
+        - 打包 / 工程
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 先说痛点，再说方案
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 你希望怎么实现
+      placeholder: |
+        例如：托盘里加一个「随机主题」选项，每次启动 Codex 随机挑一套。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的其他方案
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我已搜索过现有 Issue，没有重复
+          required: true
+        - label: 我愿意自己提 PR 实现（可选）
+          required: false

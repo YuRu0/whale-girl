@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>Codex × 守岸人</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: #05090f; overflow: hidden; cursor: none; }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000;
+    transform-origin: 50% 55%; will-change: transform; }
+
+  /* 保持态：片子在动，定帧时用极慢推近代替死画面 */
+  body.holding video { animation: drift 18s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform: scale(1); } to { transform: scale(1.045); } }
+
+  #hint { position: fixed; right: 24px; bottom: 18px; font: 300 12px/1 "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    letter-spacing: .28em; color: rgba(232, 213, 160, .55); opacity: 0; transition: opacity .6s ease; }
+  #hint.on { opacity: 1; }
+
+  /* 等待 Codex 就绪时的极简提示，默认完全不可见 */
+  #hold { position: fixed; left: 50%; bottom: 11.5%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    opacity: 0; transition: opacity .9s ease; pointer-events: none;
+    font: 300 12px/1 "Segoe UI", "Microsoft YaHei UI", sans-serif; letter-spacing: .34em;
+    color: rgba(232, 213, 160, .62); text-shadow: 0 0 18px rgba(159, 227, 255, .28); }
+  body.holding #hold { opacity: 1; }
+  #hold .line { width: 132px; height: 1px; overflow: hidden; background: rgba(159, 227, 255, .14); position: relative; }
+  #hold .line::after { content: ""; position: absolute; inset: 0; width: 42%;
+    background: linear-gradient(90deg, transparent, rgba(232, 213, 160, .85), transparent);
+    animation: sweep 2.6s cubic-bezier(.45, .05, .55, .95) infinite; }
+  @keyframes sweep { from { transform: translateX(-110%); } to { transform: translateX(340%); } }
+  #hold .dots::after { content: ""; animation: dots 2.1s steps(4, end) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "·"; } 50% { content: "··"; } 75% { content: "···"; } }
+</style>
+</head>
+<body>
+<!-- src 默认指向内置动画；主进程可通过 ?file= 换成 intros/ 下任意一片子 -->
+<video id="v" src="intros/default-shorekeeper.mp4" preload="auto" playsinline></video>
+<div id="hold"><div class="line"></div><div><span>正在唤醒工作区</span><span class="dots"></span></div></div>
+<div id="hint">ESC 跳过</div>
+<script src="intro.js"></script>
+</body>
+</html>
