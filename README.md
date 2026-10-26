@@ -53,7 +53,7 @@
 
 ### 方式一：下载安装包（推荐）
 
-到 [Releases](../../releases) 下载最新的 `WhaleGirl-<版本>-Setup.exe（中文名版：鲸鱼娘-<版本>-安装版.exe）`，双击安装。
+到 [Releases](../../releases) 下载最新的 `WhaleGirl-<版本>-Setup.exe`，双击安装。
 
 - 安装向导为中文
 - 默认装到 `D:\鲸鱼娘\whale-girl`（可改）
@@ -159,7 +159,7 @@ npm install
 npm run build          # electron-builder --win --x64 --prepackaged ./WhaleGirl
 ```
 
-产物在 `packaging/dist/WhaleGirl-<版本>-Setup.exe（中文名版：鲸鱼娘-<版本>-安装版.exe）`。
+产物在 `packaging/dist/WhaleGirl-<版本>-Setup.exe`。
 
 > `packaging/WhaleGirl/` 是 Electron 运行时工作副本（含二进制），
 > 已加入 `.gitignore`，构建脚本会自动从源码同步 `app/` 进去。

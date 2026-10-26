@@ -14,7 +14,7 @@ const THEME_DIRS = THEME_IDS.reduce((acc, id) => {
   return acc;
 }, {});
 const DEEPSEEK_THEME_DIR = THEME_DIRS["midnight-deepseek"];
-const DEEPSEEK_STYLE_VERSION = "deepseek-v7";
+const DEEPSEEK_STYLE_VERSION = "deepseek-v8";
 
 // 通用"去黑底"运行时检测（注入到 Codex 页面里执行）。
 // 不同机器上的 Codex 版本不同，容器类名（如 _WorkspaceContent_etoz9_2）带版本哈希，写死选择器会失效。
@@ -70,6 +70,20 @@ const UNBLACK_JS = `
           if (el.hasAttribute("data-ds-unblack") || el.hasAttribute("data-ds-unblack-self")) return true;
           return false;
         }
+        // 是否是"主内容表面"——Codex 的主工作区容器。
+        // 判断依据与类名哈希解耦：<main> 标签 / role=main / 语义类名 / 内部含 <main>。
+        function isMainSurface(el) {
+          var tag = String(el.tagName || "").toUpperCase();
+          if (tag === "MAIN") return true;
+          var role = String(el.getAttribute && el.getAttribute("role") || "").toLowerCase();
+          if (role === "main") return true;
+          var cls = String(el.className && el.className.baseVal !== undefined ? el.className.baseVal : (el.className || ""));
+          if (/(MainContentSurface|WorkspaceContent|MainSurface|ContentSurface|MainPane|ChatSurface|WorkspacePane)/.test(cls)) return true;
+          try {
+            if (el.querySelector && el.querySelector("main, [role=main]")) return true;
+          } catch (e) {}
+          return false;
+        }
         // 判定一个元素是不是"大面积不透明深色遮罩"，是则返回 pseudo / self / null
         function judge(el, vArea, minPct) {
           var r = el.getBoundingClientRect();
@@ -88,6 +102,10 @@ const UNBLACK_JS = `
               if (!String(el.textContent || "").trim()) mark = "self";
               else if (own.pointerEvents === "none") mark = "self";
               else if (String(own.backdropFilter || "").indexOf("brightness(0.") >= 0) mark = "self";
+              // Codex 新版把深色背景从伪元素挪到了主内容容器自身（如 <main class="_MainContentSurface_azz1c_2">），
+              // 它有文字、pointer-events 是 auto、也没有 backdrop-filter，上面三条全部命中不到，必须单独放行。
+              else if (isMainSurface(el)) mark = "self";
+              else if ((r.width * r.height) / vArea >= 0.6) mark = "self";
             }
           }
           if (mark === "self") el.setAttribute("data-ds-unblack-self", "1");

@@ -4,6 +4,38 @@
 
 ---
 
+## [1.3.4] - 2026-10-26
+
+### 修复
+
+- **修好了新版 Codex 上「主工作区又黑掉」的问题**
+  Codex 更新后把深色背景从「工作区容器的 `::before` 伪元素」搬到了
+  「主内容容器 `<main>` 元素自身的 `background-color`」上（`rgb(13,17,23)`，
+  约占视口 73%），类名也从 `_WorkspaceContent_` 换成了 `_MainContentSurface_`。
+  1.3.3 的运行时检测虽然能扫到元素自身背景，但放行条件要求
+  「无文字 / `pointer-events: none` / `backdrop-filter: brightness(0.x)`」之一，
+  而这个 `<main>` 有文字、`pointer-events` 是 `auto`、没有 backdrop-filter，
+  三条全部落空 → 被判定为「干净」永久跳过 → 黑屏复现。
+
+  修复方式：在判定里新增两条放行——
+  1. `isMainSurface(el)`：`<main>` 标签 / `role="main"` / 语义类名正则
+     （`MainContentSurface`、`WorkspaceContent`、`MainSurface`、`ContentSurface`…）
+     / 内部含 `<main>` 的结构兜底。**与类名哈希解耦**，Codex 下次再改名也能命中。
+  2. 面积 ≥ 60% 视口的实心深色容器，作为最后一道兜底。
+
+### 改进
+
+- 主题 CSS 增加 `[class*="_MainContentSurface_"]` 等快速路径，首帧不闪黑
+- 主内容区左侧分隔线保留（`_MainContentLeftBorder_`），不会和侧栏黏在一起
+- 主题样式版本号升至 `deepseek-v8`，主题自身版本升至 `2.0.1`
+
+### 说明
+
+- 本次改动同时覆盖「伪元素黑底」和「元素自身黑底」两种形态，
+  旧版 Codex 与新版 Codex 都能正常显示
+
+---
+
 ## [1.3.3] - 2026-10-24
 
 ### 修复

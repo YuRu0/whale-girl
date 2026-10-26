@@ -1,7 +1,10 @@
 'use strict';
-// 深夜大肥鱼主题 v6：只铺壁纸 + 挂 HUD，不碰 Codex 的界面配色（回到"打包前那个正常版本"的做法）。
-// 关键：Codex 工作区容器（[class*="_WorkspaceContent_"]）自带一个近黑底 ::before（#0d1117），
-// 会整块盖住壁纸——必须透明化。此前几轮调"玻璃层"参数全都压在这张黑底之下，所以怎么调都没变化。
+// 深夜大肥鱼主题 v7：只铺壁纸 + 挂 HUD，不碰 Codex 的界面配色。
+// 已知会挡住壁纸的两处 Codex 自带深色底（#0d1117）：
+//   ① 旧版：[class*="_WorkspaceContent_"] 的 ::before 伪元素；
+//   ② 新版：<main class="_MainContentSurface_xxxxx_N"> 元素自身的 background-color。
+// 两者都写 CSS 快速路径处理；类名带构建哈希，所以真正的兜底是 theme.cjs 里的
+// UNBLACK_JS 运行时检测（isMainSurface + 大面积判定），CSS 只负责首帧不闪。
 module.exports = function deepseekThemeCss({ video, poster, clockSize }) {
   const cs = Number(clockSize) || 92;
   return `
@@ -14,8 +17,22 @@ module.exports = function deepseekThemeCss({ video, poster, clockSize }) {
 /* 界面始终盖在壁纸之上 */
 html[data-deepseek-wallpaper="on"] #root { position: relative !important; z-index: 1 !important; }
 
-/* ── 关键修复：Codex 工作区自带的近黑底（::before #0d1117）会整块涂黑主内容区 ── */
+/* ── 关键修复 ①：旧版工作区容器的近黑底 ::before ── */
 [class*="_WorkspaceContent_"]::before { background: transparent !important; display: none !important; }
+
+/* ── 关键修复 ②：新版主内容容器把深色背景写在元素自身（_MainContentSurface_ 系列） ── */
+[class*="_MainContentSurface_"],
+[class*="_WorkspaceContent_"],
+[class*="_MainSurface_"],
+[class*="_ContentSurface_"] {
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* 主内容区左边界那条分隔线保留，避免和侧栏黏在一起 */
+[class*="_MainContentLeftBorder_"] { border-left-color: rgba(120, 170, 230, .18) !important; }
+
 /* 侧栏保持透明，让壁纸完整透出 */
 html[data-deepseek-wallpaper="on"] aside, html[data-deepseek-wallpaper="on"] nav { background-color: transparent !important; }
 

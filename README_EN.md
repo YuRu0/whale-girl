@@ -52,7 +52,7 @@ English | [简体中文](./README.md)
 
 ### Option 1: installer (recommended)
 
-Grab the latest `WhaleGirl-v1.3.3-Setup.exe` from [Releases](../../releases) and run it.
+Grab the latest `WhaleGirl-1.3.4-Setup.exe` from [Releases](../../releases) and run it.
 
 - Chinese setup wizard
 - Defaults to `D:\鲸鱼娘\whale-girl` (changeable)
@@ -160,7 +160,7 @@ npm install
 npm run build          # electron-builder --win --x64 --prepackaged ./WhaleGirl
 ```
 
-Output: `packaging/dist/WhaleGirl-v1.3.3-Setup.exe`.
+Output: `packaging/dist/WhaleGirl-1.3.4-Setup.exe`.
 
 > `packaging/WhaleGirl/` is the Electron runtime working copy (binaries included).
 > It is git-ignored; the build script syncs `app/` into it.
