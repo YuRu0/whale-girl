@@ -56,7 +56,7 @@ English | [简体中文](./README.md)
 
 ### Option 1: installer (recommended)
 
-Grab the latest `WhaleGirl-1.3.4-Setup.exe` from [Releases](../../releases) and run it.
+Grab the latest `WhaleGirl-1.4.0-Setup.exe` from [Releases](../../releases) and run it.
 
 - Chinese setup wizard
 - Defaults to `D:\鲸鱼娘\whale-girl` (changeable)
@@ -70,9 +70,9 @@ Grab the latest `WhaleGirl-1.3.4-Setup.exe` from [Releases](../../releases) and 
 
 ```bash
 git clone https://github.com/YuRu0/whale-girl.git
-cd whale-girl
+cd whale-girl/packaging
 npm install
-npm start          # requires an Electron 43.3.0 runtime on this machine
+npm run build -- --runtime "C:/path/to/electron-43.3.0"
 ```
 
 ---
@@ -161,10 +161,10 @@ whale-girl/
 ```bash
 cd packaging
 npm install
-npm run build          # electron-builder --win --x64 --prepackaged ./WhaleGirl
+npm run build -- --runtime "C:/path/to/electron-43.3.0"
 ```
 
-Output: `packaging/dist/WhaleGirl-1.3.4-Setup.exe`.
+Output: `packaging/dist/WhaleGirl-1.4.0-Setup.exe`.
 
 > `packaging/WhaleGirl/` is the Electron runtime working copy (binaries included).
 > It is git-ignored; the build script syncs `app/` into it.
@@ -222,3 +222,4 @@ The code is released under the **MIT** license. See [LICENSE](./LICENSE).
 ```
 Copyright (c) 2026 YuRu0
 ```
+

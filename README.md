@@ -70,11 +70,9 @@
 
 ```bash
 git clone https://github.com/YuRu0/whale-girl.git
-cd whale-girl
+cd whale-girl/packaging
 npm install
-
-# 开发模式运行（需要本机已有 Electron 43.3.0 运行时）
-npm start
+npm run build -- --runtime "C:/path/to/electron-43.3.0"
 ```
 
 ---
@@ -160,7 +158,7 @@ Codex 自己的工作区容器上有一层近黑底（`::before`，约 `#0d1117`
 ```bash
 cd packaging
 npm install
-npm run build          # electron-builder --win --x64 --prepackaged ./WhaleGirl
+npm run build -- --runtime "C:/path/to/electron-43.3.0"
 ```
 
 产物在 `packaging/dist/WhaleGirl-<版本>-Setup.exe`。
@@ -227,3 +225,4 @@ Copyright (c) 2026 YuRu0
 如果这个小东西让你写代码时心情好了一点，给个 ⭐ 吧。
 
 </div>
+
