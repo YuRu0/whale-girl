@@ -1,3 +1,7 @@
+> **v1.4.0**: official launch compatibility, reconnect/recovery menu and a calmer reading theme. Keep WhaleGirl running. After CC Switch restarts Codex without the theme port, use the tray recovery action.
+
+> **Build**: Node.js 22+, run npm install in packaging/, then npm run build -- --runtime "unpacked Electron 43.3.0 directory". Output: packaging/dist/WhaleGirl-1.4.0-Setup.exe. There is no root npm start command.
+
 <div align="center">
 
 # WhaleGirl · 鲸鱼娘

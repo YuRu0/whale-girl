@@ -2,8 +2,8 @@
   "id": "midnight-deepseek",
   "name": "深夜大肥鱼 · 雨夜",
   "version": "2.0.1",
-  "styleVersion": "deepseek-v8",
-  "description": "DeepSeek 娘雨夜卧室动态壁纸：视频背景 + 时钟/日期/氛围文案/实时天气，Codex 界面玻璃化",
+  "styleVersion": "deepseek-v9",
+  "description": "雨夜舒适主题：柔和壁纸、稳定阅读遮罩、紧凑时钟与减少动态效果",
   "author": "Codex × 守岸人",
   "background": {
     "type": "video",
@@ -21,7 +21,7 @@
     "cacheMinutes": 30
   },
   "hud": {
-    "clockSize": 92,
+    "clockSize": 16,
     "accent": "#9fe3ff",
     "text": "#eef7ff"
   }

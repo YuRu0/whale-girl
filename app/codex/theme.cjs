@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { evaluate, isMainPage } = require("./cdp.cjs");
 
 const CODEX_PACKAGE_NAME = "OpenAI.Codex";
 const CODEX_APP_ID = "OpenAI.Codex_2p2nqsd0c76g0!App";
@@ -14,7 +15,7 @@ const THEME_DIRS = THEME_IDS.reduce((acc, id) => {
   return acc;
 }, {});
 const DEEPSEEK_THEME_DIR = THEME_DIRS["midnight-deepseek"];
-const DEEPSEEK_STYLE_VERSION = "deepseek-v8";
+const DEEPSEEK_STYLE_VERSION = "deepseek-v9";
 
 // 通用"去黑底"运行时检测（注入到 Codex 页面里执行）。
 // 不同机器上的 Codex 版本不同，容器类名（如 _WorkspaceContent_etoz9_2）带版本哈希，写死选择器会失效。
@@ -207,7 +208,9 @@ class CodexThemeController {
   // 切换主题：清资产缓存 → 清掉旧主题的注入 → 立即重注入
   async setActiveTheme(id) {
     if (!THEME_IDS.includes(id) || id === this.activeTheme) return { ok: false, message: "主题未变化" };
+    const pending = this.applying;
     this.activeTheme = id;
+    if (pending) await pending.catch(() => {});
     this.assetCache.clear();
     await this.removeTheme().catch(() => {});
     const result = await this.applyNow().catch((e) => ({ ok: false, message: e.message }));
@@ -223,46 +226,13 @@ class CodexThemeController {
   }
 
   // 在 Codex 页面里跑一段表达式，取第一个页面的返回值（returnByValue）
-  async evalInPagesValue(expression, timeoutMs = 1500) {
-    let targets;
+  async evalInPagesValue(expression, timeoutMs = 2000) {
     try {
-      targets = await getJson(`http://127.0.0.1:${this.debugPort}/json/list`, timeoutMs);
-    } catch {
-      return null;
-    }
-    const pages = (Array.isArray(targets) ? targets : []).filter(
-      (target) => target.type === "page" && target.webSocketDebuggerUrl
-    );
-    for (const page of pages) {
-      try {
-        const socket = new WebSocket(page.webSocketDebuggerUrl);
-        let id = 0;
-        const pending = new Map();
-        socket.onmessage = (event) => {
-          const message = JSON.parse(event.data);
-          if (message.id && pending.has(message.id)) {
-            pending.get(message.id)(message);
-            pending.delete(message.id);
-          }
-        };
-        await new Promise((resolve, reject) => {
-          socket.onopen = resolve;
-          socket.onerror = () => reject(new Error("CDP"));
-        });
-        const call = (method, params = {}) =>
-          new Promise((resolve) => {
-            const callId = ++id;
-            pending.set(callId, resolve);
-            socket.send(JSON.stringify({ id: callId, method, params }));
-          });
-        const result = await call("Runtime.evaluate", { expression, returnByValue: true });
-        socket.close();
-        const value = result && result.result && result.result.result && result.result.result.value;
-        if (value !== undefined && value !== null) return value;
-      } catch {
-        // 换下一个页面
+      const pages = (await getJson('http://127.0.0.1:' + this.debugPort + '/json/list', timeoutMs)).filter(isMainPage);
+      for (const page of pages) {
+        try { const value = await evaluate(page.webSocketDebuggerUrl, expression, timeoutMs); if (value != null) return value; } catch {}
       }
-    }
+    } catch {}
     return null;
   }
 
@@ -290,47 +260,7 @@ class CodexThemeController {
   }
 
   // 在 Codex 页面里跑一段返回布尔的表达式；任一页面为真即返回 true
-  async evalInPages(expression, timeoutMs = 1500) {
-    let targets;
-    try {
-      targets = await getJson(`http://127.0.0.1:${this.debugPort}/json/list`, timeoutMs);
-    } catch {
-      return false;
-    }
-    const pages = (Array.isArray(targets) ? targets : []).filter(
-      (target) => target.type === "page" && target.webSocketDebuggerUrl
-    );
-    for (const page of pages) {
-      try {
-        const socket = new WebSocket(page.webSocketDebuggerUrl);
-        let id = 0;
-        const pending = new Map();
-        socket.onmessage = (event) => {
-          const message = JSON.parse(event.data);
-          if (message.id && pending.has(message.id)) {
-            pending.get(message.id)(message);
-            pending.delete(message.id);
-          }
-        };
-        await new Promise((resolve, reject) => {
-          socket.onopen = resolve;
-          socket.onerror = () => reject(new Error("CDP"));
-        });
-        const call = (method, params = {}) =>
-          new Promise((resolve) => {
-            const callId = ++id;
-            pending.set(callId, resolve);
-            socket.send(JSON.stringify({ id: callId, method, params }));
-          });
-        const result = await call("Runtime.evaluate", { expression, returnByValue: true });
-        socket.close();
-        if (result && result.result && result.result.result && result.result.result.value === true) return true;
-      } catch {
-        // 换下一个页面
-      }
-    }
-    return false;
-  }
+  async evalInPages(expression, timeoutMs = 2000) { return (await this.evalInPagesValue(expression, timeoutMs)) === true; }
 
   // Codex 界面是否真的画出来了：DOM 挂载完成 + #root 有内容 + body 有实际尺寸
   // 连续两次为真才算就绪，避免首屏还在重建时提前放行动画。
@@ -370,7 +300,7 @@ class CodexThemeController {
   async isCodexRunning() {
     if (await this.debugEndpoint()) return true;
     const result = await this.options.runPowerShell(
-      "(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Measure-Object).Count",
+      "(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*OpenAI.Codex*' } | Measure-Object).Count",
       4000
     );
     return Number(String(result).trim()) > 0;
@@ -394,9 +324,9 @@ class CodexThemeController {
       return { ok: false, mode: "missing", message: "未找到 Codex 桌面应用" };
     }
 
-    this.options.spawn(exe, [`--remote-debugging-port=${this.debugPort}`], {
+    this.options.spawn(exe, [`--remote-debugging-port=${this.debugPort}`, "--remote-debugging-address=127.0.0.1"], {
       detached: true,
-      windowsHide: true,
+      windowsHide: false,
       stdio: "ignore"
     }).unref();
 
@@ -412,6 +342,15 @@ class CodexThemeController {
   async resolveCodexExe() {
     if (this.options.codexExe && fs.existsSync(this.options.codexExe)) {
       return this.options.codexExe;
+    }
+    // 官方应用执行别名保留 MSIX 包身份。Node 的 existsSync 会把这个
+    // AppExecLink 当作不存在，必须检查链接本身；不可退回直接运行包内 EXE。
+    const alias = path.join(process.env.LOCALAPPDATA || "", "Microsoft", "WindowsApps", "chatgpt-desktop.exe");
+    try {
+      fs.lstatSync(alias);
+      return alias;
+    } catch {
+      // 老版本未注册执行别名时再查安装包。
     }
     try {
       const raw = await this.options.runPowerShell(
@@ -430,6 +369,12 @@ class CodexThemeController {
   }
 
   async activateCodex() {
+    // 已经带 CDP 启动时只恢复窗口。再次通过 AppsFolder 激活会另起一个
+    // 不带参数的打包实例，抢走单实例锁，导致刚连上的主题端口消失。
+    if (await this.isCodexRunning()) {
+      await this.focusCodexWindow();
+      return;
+    }
     this.options.spawn("explorer.exe", [`shell:AppsFolder\\${CODEX_APP_ID}`], {
       detached: true,
       windowsHide: true,
@@ -442,7 +387,7 @@ class CodexThemeController {
     // 最小化时 AppActivate 不会还原窗口，先 ShowWindow(SW_RESTORE) 再激活
     const command = [
       "Add-Type -Namespace W -Name U -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool ShowWindow(System.IntPtr h, int c); [DllImport(\"user32.dll\")] public static extern bool IsIconic(System.IntPtr h); [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(System.IntPtr h);'",
-      "$p = Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1",
+      "$p = Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.Path -like '*OpenAI.Codex*' } | Select-Object -First 1",
       "if ($p) { $h = $p.MainWindowHandle; if ([W.U]::IsIconic($h)) { [W.U]::ShowWindow($h, 9) | Out-Null }; (New-Object -ComObject WScript.Shell).AppActivate($p.Id) | Out-Null; [W.U]::SetForegroundWindow($h) | Out-Null }"
     ].join("; ");
     await this.options.runPowerShell(command, 5000);
@@ -465,6 +410,7 @@ class CodexThemeController {
 
   // 关闭主题：从所有 Codex 页面移除注入的样式与装饰层
   async removeTheme() {
+    if (this.applying) await this.applying.catch(() => {});
     let targets;
     try { targets = await getJson(`http://127.0.0.1:${this.debugPort}/json/list`, 2200); } catch { return; }
     const pages = (Array.isArray(targets) ? targets : []).filter((t) => t.type === "page" && t.webSocketDebuggerUrl);
@@ -473,6 +419,7 @@ class CodexThemeController {
         const socket = new WebSocket(page.webSocketDebuggerUrl);
         await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = () => reject(new Error("CDP")); });
         socket.send(JSON.stringify({ id: 1, method: "Runtime.evaluate", params: { expression: `(() => {
+          window.__deepseekComfortCleanup?.();
           // 清理守岸人主题
           ["codex-whale-theme-style", "whale-theme-overlay", "shorekeeper-theme-background", "shorekeeper-theme-character"].forEach((id) => document.getElementById(id)?.remove());
           delete document.documentElement.dataset.whaleTheme; delete document.documentElement.dataset.shorekeeperTheme;
@@ -492,6 +439,14 @@ class CodexThemeController {
   }
 
   async applyNow() {
+    // 上一次握手未结束时复用结果，防止轮询累积连接。
+    if (this.applying) return this.applying;
+    this.applying = this.applyNowInternal();
+    try { return await this.applying; }
+    finally { this.applying = null; }
+  }
+
+  async applyNowInternal() {
     if (!this.enabled) {
       return { ok: false, message: "主题注入已关闭" };
     }
@@ -499,11 +454,11 @@ class CodexThemeController {
     try {
       targets = await getJson(`http://127.0.0.1:${this.debugPort}/json/list`, 2200);
     } catch {
-      this.lastError = "主题通道未连接";
+      this.lastError = "主题通道未连接；请完全退出 Codex，再从鲸鱼娘或大肥鱼主题快捷方式启动";
       return { ok: false, message: this.lastError };
     }
     const pages = (Array.isArray(targets) ? targets : []).filter(
-      (target) => target.type === "page" && target.webSocketDebuggerUrl
+      isMainPage
     );
     if (!pages.length) {
       this.lastError = "等待 Codex 页面";
@@ -538,14 +493,27 @@ class CodexThemeController {
         pending.delete(message.id);
       }
     };
+    socket.onclose = () => {
+      for (const finish of pending.values()) finish({ error: { message: "CDP 连接已关闭" } });
+      pending.clear();
+    };
     await new Promise((resolve, reject) => {
-      socket.onopen = resolve;
-      socket.onerror = () => reject(new Error("CDP WebSocket 连接失败"));
-    });
+      const timer = setTimeout(() => reject(new Error("CDP WebSocket 连接超时")), 4000);
+      socket.onopen = () => { clearTimeout(timer); resolve(); };
+      socket.onerror = () => { clearTimeout(timer); reject(new Error("CDP WebSocket 连接失败")); };
+    }).catch((error) => { socket.close(); throw error; });
     const call = (method, params = {}) =>
-      new Promise((resolve) => {
+      new Promise((resolve, reject) => {
         const callId = ++id;
-        pending.set(callId, resolve);
+        const timer = setTimeout(() => {
+          pending.delete(callId);
+          reject(new Error(`CDP ${method} 超时`));
+        }, 10000);
+        pending.set(callId, (message) => {
+          clearTimeout(timer);
+          if (message.error) reject(new Error(message.error.message || "CDP 协议错误"));
+          else resolve(message);
+        });
         socket.send(JSON.stringify({ id: callId, method, params }));
       });
 
@@ -555,10 +523,11 @@ class CodexThemeController {
         ? `(() => {
             const s = document.getElementById("deepseek-wallpaper-style");
             const ok = Boolean(s && s.dataset.version === "${DEEPSEEK_STYLE_VERSION}" && document.getElementById("deepseek-wallpaper-video"));
+            if (ok && document.getElementById("deepseek-wallpaper-video").dataset.dsLoaded !== "v6") return false;
             if (ok) {
               const v = document.getElementById("deepseek-wallpaper-video");
               // 保活：视频被任何原因暂停（窗口遮挡/页面隐藏/省电策略）都立即恢复，避免停在黑帧
-              if (v && v.paused) {
+              if (v && v.paused && v.dataset.dsMotion !== "off") {
                 v.muted = true;
                 v.play().catch(() => {});
               }
@@ -578,8 +547,9 @@ class CodexThemeController {
         awaitPromise: true
       });
       if (result.result?.exceptionDetails) {
-        throw new Error(result.result.exceptionDetails.text || "主题脚本执行失败");
+        throw new Error(result.result.exceptionDetails.exception?.description || result.result.exceptionDetails.text || "主题脚本执行失败");
       }
+      if (!result.result?.result?.value?.theme) throw new Error("主题脚本未返回成功状态");
     } finally {
       socket.close();
     }
@@ -681,21 +651,22 @@ class CodexThemeController {
       }
       // 视频壁纸（强制静音：主题不发声）
       let video = document.getElementById("deepseek-wallpaper-video");
+      if (video && video.dataset.dsLoaded !== "v6") { video.remove(); video = null; }
       if (!video) {
         video = document.createElement("video");
         video.id = "deepseek-wallpaper-video";
         document.body.prepend(video);
       }
       // data URI 体积大，只用 dataset 标志判断是否已加载，避免在表达式里重复内联
-      if (video.dataset.dsLoaded !== "v5") {
+      if (video.dataset.dsLoaded !== "v6") {
         video.src = ${JSON.stringify(videoUri)};
-        video.dataset.dsLoaded = "v5";
+        video.dataset.dsLoaded = "v6";
         video.loop = true; video.autoplay = true; video.playsInline = true;
         video.muted = true; video.volume = 0;
         video.poster = ${JSON.stringify(posterUri)};
         // 任何原因被暂停都自动恢复：窗口遮挡 / 页面隐藏 / 应用省电策略都会 pause
         video.addEventListener("pause", () => setTimeout(() => {
-          if (video.paused && video.isConnected) video.play().catch(() => {});
+          if (video.paused && video.isConnected && video.dataset.dsMotion !== "off") video.play().catch(() => {});
         }, 60));
         // 元数据就绪后若还没开播，先跳过片头黑帧，让静止画面也是真实场景
         video.addEventListener("loadedmetadata", () => {
@@ -704,14 +675,14 @@ class CodexThemeController {
         // 双保险保活循环：2.5s 巡检一次
         if (window.__deepseekVideoKeepAlive) clearInterval(window.__deepseekVideoKeepAlive);
         window.__deepseekVideoKeepAlive = setInterval(() => {
-          if (video.paused && video.isConnected) video.play().catch(() => {});
+          if (video.paused && video.isConnected && video.dataset.dsMotion !== "off") video.play().catch(() => {});
         }, 2500);
       }
       const tryPlay = (v) => {
         const p = v.play();
         if (p && p.catch) p.catch(() => { v.muted = true; v.play().catch(() => {}); });
       };
-      tryPlay(video);
+      if (video.dataset.dsMotion !== "off") tryPlay(video);
       // 渐晕层
       let veil = document.getElementById("deepseek-veil");
       if (!veil) {
@@ -761,6 +732,7 @@ class CodexThemeController {
       };
       if (!window.__deepseekWeatherTimer) refreshWeather();
       ${UNBLACK_JS}
+      ${require("./themes/midnight-deepseek/comfort-runtime.cjs")}
       return { theme: "midnight-deepseek", title: document.title };
     })()`;
   }

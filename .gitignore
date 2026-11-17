@@ -49,3 +49,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+/packaging/WhaleGirl/
+/packaging/dist/
+/packaging/source-manifest.json

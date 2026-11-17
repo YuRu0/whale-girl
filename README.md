@@ -1,3 +1,7 @@
+> **1.4.0 更新**：官方客户端启动兼容、持续重连、托盘恢复入口与舒适阅读主题。主题需保持鲸鱼娘运行；CC Switch 切换后若未带主题参数，右键托盘选择「重新连接 / 恢复主题」。详见 [发布说明](RELEASE_NOTES_v1.4.0.md)。
+
+> **构建**：Node.js 22+，在 packaging/ 执行 npm install，再运行 npm run build -- --runtime "Electron 43.3.0 解压目录"。安装包输出 packaging/dist/WhaleGirl-1.4.0-Setup.exe。仓库根目录不运行 npm install/npm start。
+
 <div align="center">
 
 # 鲸鱼娘 · WhaleGirl

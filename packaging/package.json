@@ -1,13 +1,13 @@
 {
   "name": "whale-girl",
   "productName": "鲸鱼娘",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "description": "鲸鱼娘桌宠 + Codex 界面主题（守岸人 · 夜海 / 深夜大肥鱼 · 雨夜）与可更换启动动画",
   "author": "YuRu0",
   "license": "MIT",
   "main": "resources/app/main.cjs",
   "scripts": {
-    "build": "electron-builder --win --x64 --prepackaged ./WhaleGirl"
+    "build": "node build.cjs"
   },
   "build": {
     "appId": "Yuru.WhaleGirl",
@@ -23,10 +23,12 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "artifactName": "${productName}-${version}-安装版.${ext}",
+      "artifactName": "WhaleGirl-${version}-Setup.${ext}",
       "legalTrademarks": ""
     },
     "nsis": {
@@ -37,7 +39,9 @@
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "鲸鱼娘",
-      "installerLanguages": ["zh_CN"],
+      "installerLanguages": [
+        "zh_CN"
+      ],
       "language": "2052",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
@@ -46,6 +50,6 @@
     "nsisWeb": null
   },
   "devDependencies": {
-    "electron-builder": "^26.0.0"
+    "electron-builder": "26.15.3"
   }
 }

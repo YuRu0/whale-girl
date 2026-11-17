@@ -110,10 +110,10 @@ function setup(ctx) {
     settings.codexThemeActive = id;
     saveSettings(); updateTray();
     if (!settings.codexTheme) { say(`已选「${label}」主题\n不过界面主题注入现在是关闭的\n在下面把它打开才会生效哦`); return; }
-    theme.setActiveTheme(id).then((r) => {
+    theme.setActiveTheme(id).then(async (r) => {
       log(`主题切换: ${JSON.stringify(r)}`);
       if (r.ok) say(`换上「${label}」啦`);
-      else if (theme.debugEndpoint()) say(`「${label}」没能立刻生效：${r.message || '未知原因'}`);
+      else if (await theme.debugEndpoint()) say(`「${label}」没能立刻生效：${r.message || '未知原因'}`);
       else say(`已记住「${label}」主题\n下次从鲸鱼娘打开 Codex 时生效`);
     }).catch((e) => log(`主题切换失败: ${e.message}`));
   }
@@ -265,7 +265,7 @@ function setup(ctx) {
           return false;
         }
         if (settings.codexTheme) { theme.start(); theme.applyNow().catch(() => {}); }
-        const ok = await theme.waitAppReady(45000).catch(() => false);
+        const ok = r.mode === 'debug' ? await theme.waitAppReady(45000).catch(() => false) : true;
         codexReady = true;   // 无论是就绪还是超时，都必须放行，不能把用户卡在动画里
         release(ok ? 'app-ready' : 'ready-timeout');
         return ok;
@@ -284,11 +284,11 @@ function setup(ctx) {
           all = lines.pop();
           // 动画进程的关键信号原样进运行日志，方便排查黑屏/放行问题
           for (const l of lines) if (l.includes('INTRO:')) log(`[动画] ${l.trim()}`);
-          if (!focused && /INTRO:reveal/.test(all)) {
+          if (!focused && /INTRO:reveal/.test(lines.join("\n") + all)) {
             focused = true;
             setTimeout(() => theme.focusCodexWindow().catch(() => {}), 200);
           }
-          if (/INTRO:(done|error)\b/.test(all)) finishHow('intro');
+          if (/INTRO:(done|error)\b/.test(lines.join("\n") + all)) finishHow('intro');
         });
         child.on('exit', () => finishHow('exit'));
         child.on('error', () => finishHow('error'));
@@ -333,6 +333,10 @@ function setup(ctx) {
     const cors = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json; charset=utf-8' };
     if (/^https?:\/\//i.test(origin) && !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(origin)) { res.writeHead(403, cors); return res.end('{"ok":false}'); }
     const url = (req.url || '').split('?')[0];
+    if (req.method === 'GET' && url === '/theme-status') {
+      res.writeHead(200, cors);
+      return res.end(JSON.stringify(theme.state()));
+    }
     // 启动动画子进程轮询这里，问"Codex 界面画好了没"，顺带取窗口位置用于贴合
     if (req.method === 'GET' && url === '/codex-ready') {
       res.writeHead(200, cors);
@@ -352,12 +356,37 @@ function setup(ctx) {
     usage.start(30000);
     try { globalShortcut.register('CommandOrControl+Alt+U', togglePanel); } catch {}
     // Codex 若已带调试端口在运行（比如鲸鱼娘重启），直接接上主题
-    theme.debugEndpoint().then((ep) => { if (ep && settings.codexTheme) theme.start(); }).catch(() => {});
+    // 持续等待：登录自启时 Codex 通常还没打开，后启动也必须自动接上。
+    if (settings.codexTheme) theme.start();
   }
   function stop() {
     try { server.close(); } catch {}
+    clearInterval(recoveryTimer);
     usage.stop(); theme.stop();
     try { globalShortcut.unregisterAll(); } catch {}
+  }
+  let recoveryTimer = null;
+  async function reconnectTheme() {
+    theme.setOptions({ enabled: settings.codexTheme });
+    if (!settings.codexTheme) { say('请先启用界面主题'); return; }
+    theme.start();
+    const result = await theme.applyNow();
+    if (result.ok) { say('主题已重新连接'); return; }
+    const answer = await dialog.showMessageBox({type:'info', title:'恢复 Codex 主题',
+      message:'当前 Codex 未开启主题连接', detail:'CC Switch 切换或普通快捷方式启动后可能缺少主题参数。选择自动恢复后，请保存工作并完全退出 Codex；鲸鱼娘会自动重新打开并加载主题。账号配置保持不变。',
+      buttons:['退出 Codex 后自动恢复','取消'], defaultId:0, cancelId:1});
+    if (answer.response !== 0) return;
+    clearInterval(recoveryTimer);
+    const deadline = Date.now() + 30 * 60 * 1000;
+    let checking = false;
+    recoveryTimer = setInterval(async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        if (Date.now() > deadline) { clearInterval(recoveryTimer); recoveryTimer = null; return; }
+        if (!(await theme.isCodexRunning())) { clearInterval(recoveryTimer); recoveryTimer = null; await startCodex({intro:false}); }
+      } catch (e) { log('主题恢复: ' + e.message); } finally { checking = false; }
+    }, 2500);
   }
   function trayItems() {
     const toggle = (key, label, after) => ({ label, type: 'checkbox', checked: Boolean(settings[key]),
@@ -386,13 +415,18 @@ function setup(ctx) {
           })()
         ] },
         { type: 'separator' },
+        { label: '重新连接 / 恢复主题', click: () => reconnectTheme().catch(e => say(e.message)) },
         { label: '界面主题', submenu: [
           { label: '守岸人 · 夜海', type: 'radio', checked: settings.codexThemeActive !== 'midnight-deepseek',
             click: () => switchTheme('shorekeeper', '守岸人 · 夜海') },
           { label: '深夜大肥鱼 · 雨夜', type: 'radio', checked: settings.codexThemeActive === 'midnight-deepseek',
             click: () => switchTheme('midnight-deepseek', '深夜大肥鱼 · 雨夜') },
           { type: 'separator' },
-          toggle('codexTheme', '启用界面主题注入')
+          toggle('codexTheme', '启用界面主题注入', (enabled) => {
+            theme.setOptions({ enabled });
+            if (enabled) theme.start();
+            else { theme.stop(); theme.removeTheme().catch((e) => log(`移除主题失败: ${e.message}`)); }
+          })
         ] },
         { type: 'separator' },
         toggle('usageNotify', '用量提醒气泡（里程碑 / 上下文 / 余额）')
